@@ -88,4 +88,25 @@ def get_question_by_id(question_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@chatbot_bp.route('/questions', methods=['GET'])
+def get_all_questions():
+    try:
+        all_questions = Question.query.order_by(Question.question_id).all()
 
+        result = []
+        for q in all_questions:
+            options = AnswerOption.query.filter_by(type=q.question_type.upper()).order_by(AnswerOption.value).all()
+            option_list = [{"label": opt.label, "value": opt.value} for opt in options]
+
+            result.append({
+                "question_id": q.question_id,
+                "question_type": q.question_type,
+                "text": q.question,
+                "options": option_list
+            })
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
