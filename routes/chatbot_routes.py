@@ -20,7 +20,6 @@ score_input_model = chatbot_ns.model('ScoreInput', {
     'gad7_answers': fields.Raw(required=False, description='Dict of GAD7 answers')
 })
 
-# 👋 Greeting
 @chatbot_ns.route('/greeting')
 class Greeting(Resource):
     def get(self):
@@ -30,7 +29,7 @@ class Greeting(Resource):
         }, 200
 
 
-# 🔁 Update profile
+# Update profile
 @chatbot_ns.route('/profile')
 class Profile(Resource):
     @chatbot_ns.expect(profile_update_model)
@@ -67,7 +66,6 @@ class Profile(Resource):
         except Exception as e:
             return {"error": str(e)}, 500
 
-# 🧠 Score evaluation
 @chatbot_ns.route('/score')
 class Score(Resource):
     @chatbot_ns.expect(score_input_model)
@@ -88,7 +86,6 @@ class Score(Resource):
             return {"error": str(e)}, 500
 
 
-# 📌 Get one question by ID
 @chatbot_ns.route('/questions/<int:question_id>')
 class QuestionByID(Resource):
     def get(self, question_id):
@@ -111,8 +108,6 @@ class QuestionByID(Resource):
         except Exception as e:
             return {"error": str(e)}, 500
 
-
-# 📋 Get all questions with their options
 @chatbot_ns.route('/questions')
 class AllQuestions(Resource):
     def get(self):

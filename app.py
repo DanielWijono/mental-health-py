@@ -27,12 +27,13 @@ def create_app():
     from routes.chatbot_routes import chatbot_ns
     api.add_namespace(chatbot_ns)
 
+    from routes.response_routes import response_ns
+    api.add_namespace(response_ns)
+
     # Register Blueprints
     from routes.answer_routes import answer_bp
-    from routes.response_routes import response_bp
 
     app.register_blueprint(answer_bp)
-    app.register_blueprint(response_bp)
 
     @app.route('/')
     def home():

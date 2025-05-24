@@ -6,7 +6,6 @@ from extensions import db
 
 chat_ns = Namespace('chats', description='Chat operations')
 
-# 💬 Model untuk validasi input & dokumentasi
 chat_model = chat_ns.model('Chat', {
     'user_id': fields.Integer(required=True, description='ID of the user'),
     'message_type': fields.String(required=True, description="Message type: 'user' or 'bot'", enum=['user', 'bot']),
@@ -21,7 +20,6 @@ chat_response = chat_ns.model('ChatResponse', {
     'created_at': fields.String
 })
 
-# ✅ POST /chats
 @chat_ns.route('')
 class ChatCreate(Resource):
     @chat_ns.expect(chat_model)
