@@ -1,112 +1,137 @@
-from flask import Blueprint, jsonify, request
-from chatbot.chatbot_flow import (
-    get_questionnaire_data,
-    calculate_score,
-    interpret_score
-)
+from flask_restx import Namespace, Resource, fields
+from flask import request
+from chatbot.chatbot_flow import get_questionnaire_data, calculate_score, interpret_score
 from models.user import Users
 from models.question import Question
 from models.answer_option import AnswerOption
 from extensions import db
 
-chatbot_bp = Blueprint('chatbot', __name__, url_prefix='/chatbot')
+chatbot_ns = Namespace('chatbot', description='Chatbot operations')
 
-@chatbot_bp.route('/greeting', methods=['GET'])
-def greeting():
-    return jsonify({
-        "message": "👋 Hi there! Welcome to the Mental Health Assistant Bot.\nPlease provide your name, age, gender(male, female), and occupation to get started."
-    }), 200
+# 🔧 Swagger Models
+profile_update_model = chatbot_ns.model('ProfileUpdate', {
+    'user_id': fields.Integer(required=True, description='User ID'),
+    'age': fields.Integer(required=True, description='Age (1–100)'),
+    'occupation': fields.String(required=True, description='Occupation')
+})
 
-@chatbot_bp.route('/profile', methods=['PATCH'])
-def update_profile():
-    data = request.get_json()
-    required_fields = ["user_id", "age", "occupation"]
+score_input_model = chatbot_ns.model('ScoreInput', {
+    'phq9_answers': fields.Raw(required=False, description='Dict of PHQ9 answers'),
+    'gad7_answers': fields.Raw(required=False, description='Dict of GAD7 answers')
+})
 
-    missing_fields = [field for field in required_fields if field not in data or not str(data[field]).strip()]
-    if missing_fields:
-        return jsonify({"error": "Missing required field(s): " + ", ".join(missing_fields)}), 400
+# 👋 Greeting
+@chatbot_ns.route('/greeting')
+class Greeting(Resource):
+    def get(self):
+        """Greet the user"""
+        return {
+            "message": "👋 Hi there! Welcome to the Mental Health Assistant Bot.\nPlease provide your name, age, gender(male, female), and occupation to get started."
+        }, 200
 
-    try:
-        user_id = int(data["user_id"])
-        age = int(data["age"])
-        occupation = data["occupation"].strip()
 
-        if age < 1 or age > 100:
-            return jsonify({"error": "Age must be between 1 and 100."}), 400
+# 🔁 Update profile
+@chatbot_ns.route('/profile')
+class Profile(Resource):
+    @chatbot_ns.expect(profile_update_model)
+    def patch(self):
+        """Update user age and occupation"""
+        data = request.get_json()
+        required_fields = ["user_id", "age", "occupation"]
+        missing = [f for f in required_fields if f not in data or not str(data[f]).strip()]
+        if missing:
+            return {"error": "Missing field(s): " + ", ".join(missing)}, 400
 
-        user = Users.query.get(user_id)
-        if not user:
-            return jsonify({"error": "User not found."}), 404
+        try:
+            user_id = int(data["user_id"])
+            age = int(data["age"])
+            occupation = data["occupation"].strip()
 
-        user.age = age
-        user.occupation = occupation
-        db.session.commit()
+            if age < 1 or age > 100:
+                return {"error": "Age must be between 1 and 100."}, 400
 
-        return jsonify({
-            "message": f"✅ Profile updated for {user.name}. Age: {age}, Occupation: {occupation}."
-        }), 200
+            user = Users.query.get(user_id)
+            if not user:
+                return {"error": "User not found."}, 404
 
-    except ValueError:
-        return jsonify({"error": "Age and user_id must be numbers."}), 400
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+            user.age = age
+            user.occupation = occupation
+            db.session.commit()
 
-@chatbot_bp.route('/score', methods=['POST'])
-def score():
-    data = request.get_json()
+            return {
+                "message": f"✅ Profile updated for {user.name}. Age: {age}, Occupation: {occupation}."
+            }, 200
 
-    try:
-        phq9_score = calculate_score(data.get('phq9_answers', {}))
-        gad7_score = calculate_score(data.get('gad7_answers', {}))
+        except ValueError:
+            return {"error": "Age and user_id must be numbers."}, 400
+        except Exception as e:
+            return {"error": str(e)}, 500
 
-        return jsonify({
-            "phq9_score": phq9_score,
-            "phq9_interpretation": interpret_score(phq9_score, 'phq9'),
-            "gad7_score": gad7_score,
-            "gad7_interpretation": interpret_score(gad7_score, 'gad7')
-        }), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# 🧠 Score evaluation
+@chatbot_ns.route('/score')
+class Score(Resource):
+    @chatbot_ns.expect(score_input_model)
+    def post(self):
+        """Calculate score & interpretation"""
+        try:
+            data = request.get_json()
+            phq9_score = calculate_score(data.get('phq9_answers', {}))
+            gad7_score = calculate_score(data.get('gad7_answers', {}))
 
-@chatbot_bp.route('/questions/<int:question_id>', methods=['GET'])
-def get_question_by_id(question_id):
-    try:
-        question = Question.query.filter_by(question_id=question_id).first()
-        if not question:
-            return jsonify({"error": f"Question ID {question_id} not found."}), 404
+            return {
+                "phq9_score": phq9_score,
+                "phq9_interpretation": interpret_score(phq9_score, 'phq9'),
+                "gad7_score": gad7_score,
+                "gad7_interpretation": interpret_score(gad7_score, 'gad7')
+            }, 200
+        except Exception as e:
+            return {"error": str(e)}, 500
 
-        # Get related answer options based on question_type
-        options = AnswerOption.query.filter_by(type=question.question_type.upper()).order_by(AnswerOption.value).all()
-        option_list = [{"label": opt.label, "value": opt.value} for opt in options]
 
-        return jsonify({
-            "question_id": question.question_id,
-            "question_type": question.question_type,
-            "text": question.question,
-            "options": option_list
-        }), 200
+# 📌 Get one question by ID
+@chatbot_ns.route('/questions/<int:question_id>')
+class QuestionByID(Resource):
+    def get(self, question_id):
+        """Get question and options by ID"""
+        try:
+            question = Question.query.filter_by(question_id=question_id).first()
+            if not question:
+                return {"error": f"Question ID {question_id} not found."}, 404
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
-@chatbot_bp.route('/questions', methods=['GET'])
-def get_all_questions():
-    try:
-        all_questions = Question.query.order_by(Question.question_id).all()
+            options = AnswerOption.query.filter_by(type=question.question_type.upper()).order_by(AnswerOption.value).all()
+            option_list = [{"label": o.label, "value": o.value} for o in options]
 
-        result = []
-        for q in all_questions:
-            options = AnswerOption.query.filter_by(type=q.question_type.upper()).order_by(AnswerOption.value).all()
-            option_list = [{"label": opt.label, "value": opt.value} for opt in options]
-
-            result.append({
-                "question_id": q.question_id,
-                "question_type": q.question_type,
-                "text": q.question,
+            return {
+                "question_id": question.question_id,
+                "question_type": question.question_type,
+                "text": question.question,
                 "options": option_list
-            })
+            }, 200
 
-        return jsonify(result), 200
+        except Exception as e:
+            return {"error": str(e)}, 500
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+
+# 📋 Get all questions with their options
+@chatbot_ns.route('/questions')
+class AllQuestions(Resource):
+    def get(self):
+        """Get all PHQ9 and GAD7 questions with options"""
+        try:
+            all_questions = Question.query.order_by(Question.question_id).all()
+            result = []
+            for q in all_questions:
+                options = AnswerOption.query.filter_by(type=q.question_type.upper()).order_by(AnswerOption.value).all()
+                option_list = [{"label": o.label, "value": o.value} for o in options]
+
+                result.append({
+                    "question_id": q.question_id,
+                    "question_type": q.question_type,
+                    "text": q.question,
+                    "options": option_list
+                })
+
+            return result, 200
+
+        except Exception as e:
+            return {"error": str(e)}, 500

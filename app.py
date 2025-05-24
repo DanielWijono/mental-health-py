@@ -24,14 +24,15 @@ def create_app():
     from routes.chat_routes import chat_ns
     api.add_namespace(chat_ns)
 
+    from routes.chatbot_routes import chatbot_ns
+    api.add_namespace(chatbot_ns)
+
     # Register Blueprints
     from routes.answer_routes import answer_bp
     from routes.response_routes import response_bp
-    from routes.chatbot_routes import chatbot_bp
 
     app.register_blueprint(answer_bp)
     app.register_blueprint(response_bp)
-    app.register_blueprint(chatbot_bp)
 
     @app.route('/')
     def home():
