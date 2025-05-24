@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_restx import Api
 from config import Config
 from extensions import db, bcrypt
 
@@ -9,17 +10,28 @@ def create_app():
     db.init_app(app)
     bcrypt.init_app(app)
 
-    from routes.auth_routes import auth_bp
+    api = Api(
+        app,
+        version='1.0',
+        title='Mental Health Assistant API',
+        description='Documentation for PHQ-9 and GAD-7 Chatbot',
+        doc='/docs'  # akses dokumentasi di /docs
+    )
+
+    from routes.auth_routes import auth_ns
+    api.add_namespace(auth_ns, path='/auth')
+
+    from routes.chat_routes import chat_ns
+    api.add_namespace(chat_ns)
+
+    # Register Blueprints
     from routes.answer_routes import answer_bp
     from routes.response_routes import response_bp
     from routes.chatbot_routes import chatbot_bp
-    from routes.chat_routes import chat_bp
 
-    app.register_blueprint(auth_bp)
     app.register_blueprint(answer_bp)
     app.register_blueprint(response_bp)
     app.register_blueprint(chatbot_bp)
-    app.register_blueprint(chat_bp)
 
     @app.route('/')
     def home():

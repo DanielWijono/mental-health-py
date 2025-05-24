@@ -1,59 +1,63 @@
 from flask import Blueprint, request, jsonify
+from flask_restx import Namespace, Resource, fields
 from extensions import db, bcrypt
 from models.user import Users
 
-auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
+auth_ns = Namespace('auth', description='Authentication operations')
 
-@auth_bp.route('/register', methods=['POST'])
-def register():
-    data = request.get_json()
-    name = data.get('name')
-    email = data.get('email')
-    password = data.get('password')
+register_model = auth_ns.model('Register', {
+    'name': fields.String(required=True, description='User name'),
+    'email': fields.String(required=True, description='User email'),
+    'password': fields.String(required=True, description='User password')
+})
 
-    # Check for missing fields
-    missing = [field for field in ['name', 'email', 'password'] if not data.get(field)]
-    if missing:
-        return jsonify({'message': f"Missing field(s): {', '.join(missing)}"}), 400
+@auth_ns.route('/register')
+class Register(Resource):
+    @auth_ns.expect(register_model)
+    def post(self):
+        data = request.get_json()
+        name = data.get('name')
+        email = data.get('email')
+        password = data.get('password')
 
-    # Check if email already exists
-    if Users.query.filter_by(email=email).first():
-        return jsonify({'message': 'Email already registered'}), 400
+        if not all([name, email, password]):
+            return {'message': 'Missing required fields.'}, 400
 
-    try:
-        # Force password to string (handles int, float, etc.)
-        password = str(password)
+        if Users.query.filter_by(email=email).first():
+            return {'message': 'Email already registered'}, 400
 
-        # Hash and save user
-        hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')
+        hashed_pw = bcrypt.generate_password_hash(str(password)).decode('utf-8')
         new_user = Users(name=name.strip(), email=email.strip(), password_hash=hashed_pw)
         db.session.add(new_user)
         db.session.commit()
 
-        return jsonify({'message': 'User registered successfully'}), 201
+        return {'message': 'User registered successfully'}, 201
 
-    except Exception as e:
-        return jsonify({'message': str(e)}), 500
+# 📦 Model untuk dokumentasi Swagger
+login_model = auth_ns.model('Login', {
+    'email': fields.String(required=True, description='User email'),
+    'password': fields.String(required=True, description='User password'),
+})
 
-@auth_bp.route('/login', methods=['POST'])
-def login():
-    data = request.get_json()
+@auth_ns.route('/login')
+class Login(Resource):
+    @auth_ns.expect(login_model)
+    @auth_ns.doc(description="Login with email and password")
+    def post(self):
+        data = request.get_json()
 
-    email = data.get("email")
-    password = data.get("password")
+        email = data.get("email")
+        password = data.get("password")
 
-    if not email or not password:
-        return jsonify({"error": "Email and password are required."}), 400
+        if not email or not password:
+            return {"error": "Email and password are required."}, 400
 
-    user = Users.query.filter_by(email=email).first()
+        user = Users.query.filter_by(email=email).first()
 
-    if not user:
-        return jsonify({"error": "Invalid email or password."}), 401
+        if not user or not bcrypt.check_password_hash(user.password_hash, str(password)):
+            return {"error": "Invalid email or password."}, 401
 
-    if not bcrypt.check_password_hash(user.password_hash, password):
-        return jsonify({"error": "Invalid email or password."}), 401
-
-    return jsonify({
-        "message": f"Welcome back, {user.name}!",
-        "user_id": user.id
-    }), 200
+        return {
+            "message": f"Welcome back, {user.name}!",
+            "user_id": user.id
+        }, 200
