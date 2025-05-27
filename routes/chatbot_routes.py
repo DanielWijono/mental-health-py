@@ -10,9 +10,23 @@ chatbot_ns = Namespace('chatbot', description='Chatbot operations')
 
 # 🔧 Swagger Models
 profile_update_model = chatbot_ns.model('ProfileUpdate', {
-    'user_id': fields.Integer(required=True, description='User ID'),
-    'age': fields.Integer(required=True, description='Age (1–100)'),
-    'occupation': fields.String(required=True, description='Occupation')
+    'user_id': fields.Integer(
+        required=True, 
+        description='User ID',
+        default=1),
+    'age': fields.Integer(
+        required=True, 
+        description='Age (1–100)',
+        default=25),
+    'occupation': fields.String(
+        required=True, 
+        description='Occupation',
+        default='programmer'),
+    'gender': fields.String(
+        required=True,
+        description='Gender: male or female',
+        default="male"
+    )
 })
 
 score_input_model = chatbot_ns.model('ScoreInput', {
@@ -28,15 +42,13 @@ class Greeting(Resource):
             "message": "👋 Hi there! Welcome to the Mental Health Assistant Bot.\nPlease provide your name, age, gender(male, female), and occupation to get started."
         }, 200
 
-
-# Update profile
 @chatbot_ns.route('/profile')
 class Profile(Resource):
     @chatbot_ns.expect(profile_update_model)
     def patch(self):
-        """Update user age and occupation"""
+        """Update user age, occupation, and gender"""
         data = request.get_json()
-        required_fields = ["user_id", "age", "occupation"]
+        required_fields = ["user_id", "age", "occupation", "gender"]
         missing = [f for f in required_fields if f not in data or not str(data[f]).strip()]
         if missing:
             return {"error": "Missing field(s): " + ", ".join(missing)}, 400
@@ -45,9 +57,12 @@ class Profile(Resource):
             user_id = int(data["user_id"])
             age = int(data["age"])
             occupation = data["occupation"].strip()
+            gender = data["gender"].strip().lower()
 
             if age < 1 or age > 100:
                 return {"error": "Age must be between 1 and 100."}, 400
+            if gender not in ["male", "female"]:
+                return {"error": "Gender must be either 'male' or 'female'."}, 400
 
             user = Users.query.get(user_id)
             if not user:
@@ -55,10 +70,11 @@ class Profile(Resource):
 
             user.age = age
             user.occupation = occupation
+            user.gender = gender
             db.session.commit()
 
             return {
-                "message": f"✅ Profile updated for {user.name}. Age: {age}, Occupation: {occupation}."
+                "message": f"Profile updated for {user.name}. Age: {age}, Occupation: {occupation}, Gender: {gender}."
             }, 200
 
         except ValueError:

@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import request
 from flask_restx import Namespace, Resource, fields
 from extensions import db, bcrypt
 from models.user import Users
@@ -33,13 +33,12 @@ class Register(Resource):
 
         return {'message': 'User registered successfully'}, 201
 
-# 📦 Model untuk dokumentasi Swagger
 login_model = auth_ns.model('Login', {
     'email': fields.String(required=True, description='User email'),
     'password': fields.String(required=True, description='User password'),
 })
 
-@auth_ns.route('/login')
+@auth_ns.route('/login') 
 class Login(Resource):
     @auth_ns.expect(login_model)
     @auth_ns.doc(description="Login with email and password")

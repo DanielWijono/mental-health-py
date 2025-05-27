@@ -8,3 +8,4 @@ class Users(db.Model):
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     age = db.Column(db.Integer)
     occupation = db.Column(db.String(100))
+    gender = db.Column(db.String(10))

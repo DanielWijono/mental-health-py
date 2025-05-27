@@ -33,15 +33,15 @@ class ChatCreate(Resource):
         message_type = data.get('message_type')
         message = data.get('message')
 
+        user = Users.query.filter_by(id=user_id).first()
+        if not user:
+            return {"error": f"User ID {user_id} not found."}, 409
+
         if not all([user_id, message_type, message]):
             return {"error": "Missing one or more required fields: user_id, message_type, message"}, 400
 
         if message_type not in ['user', 'bot']:
             return {"error": "message_type must be 'user' or 'bot'"}, 400
-
-        user = Users.query.filter_by(id=user_id).first()
-        if not user:
-            return {"error": f"User ID {user_id} not found."}, 409
 
         new_chat = Chat(user_id=user_id, message_type=message_type, message=message)
         db.session.add(new_chat)
