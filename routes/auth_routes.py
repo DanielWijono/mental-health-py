@@ -1,7 +1,9 @@
 from flask import request
 from flask_restx import Namespace, Resource, fields
-from extensions import db, bcrypt
+from extensions import db, bcrypt, mail
 from models.user import Users
+from flask_mail import Message
+import secrets
 
 auth_ns = Namespace('auth', description='Authentication operations')
 
@@ -60,3 +62,56 @@ class Login(Resource):
             "message": f"Welcome back, {user.name}!",
             "user_id": user.id
         }, 200
+    
+forgot_password_model = auth_ns.model('ForgotPassword', {
+    'email': fields.String(required=True)
+})
+
+@auth_ns.route('/forgot-password')
+class ForgotPassword(Resource):
+    @auth_ns.expect(forgot_password_model)
+    def post(self):
+        data = request.get_json()
+        email = data.get('email')
+
+        user = Users.query.filter_by(email=email).first()
+        if not user:
+            return {'error': 'Email not found.'}, 404
+
+        # generate token
+        reset_token = secrets.token_urlsafe(32)
+
+        # send email
+        msg = Message('Reset Your Password',
+                      sender='no-reply@mentalhealth.com',
+                      recipients=[email])
+        msg.body = f"Hi {user.name},\n\nClick this link to reset your password:\n\nhttps://your-frontend-url/reset-password/{reset_token}"
+        mail.send(msg)
+
+        return {'message': 'Reset link has been sent to your email.'}, 200
+    
+change_model = auth_ns.model("ChangePassword", {
+    "email": fields.String(required=True),
+    "new_password": fields.String(required=True)
+})
+
+@auth_ns.route('/change-password')
+class ChangePassword(Resource):
+    @auth_ns.expect(change_model)
+    def post(self):
+        data = request.get_json()
+        email = data.get("email")
+        new_password = data.get("new_password")
+
+        if not email or not new_password:
+            return {"error": "Email and new password are required."}, 400
+
+        user = Users.query.filter_by(email=email).first()
+        if not user:
+            return {"error": "User not found."}, 404
+
+        hashed_pw = bcrypt.generate_password_hash(str(new_password)).decode('utf-8')
+        user.password_hash = hashed_pw
+        db.session.commit()
+
+        return {"message": "Password updated successfully."}, 200

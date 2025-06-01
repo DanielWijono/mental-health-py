@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_restx import Api
 from config import Config
-from extensions import db, bcrypt
+from extensions import db, bcrypt, mail
 from flask_cors import CORS
 from sqlalchemy import text
 from flask_migrate import Migrate
@@ -17,6 +17,7 @@ def create_app():
     db.init_app(app)
     bcrypt.init_app(app)
     migrate = Migrate(app, db)
+    mail.init_app(app)
 
     # Setup Swagger / RESTX
     api = Api(
