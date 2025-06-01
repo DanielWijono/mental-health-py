@@ -1,6 +1,5 @@
 from flask_restx import Namespace, Resource, fields
 from flask import request
-# from chatbot.chatbot_flow import get_questionnaire_data, calculate_score, interpret_score
 from models.user import Users
 from models.question import Question
 from models.answer_option import AnswerOption
