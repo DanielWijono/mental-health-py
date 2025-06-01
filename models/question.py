@@ -1,13 +1,5 @@
 from extensions import db
 
-class PHQ9Questions(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    question = db.Column(db.Text, nullable=False)
-
-class GAD7Questions(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    question = db.Column(db.Text, nullable=False)
-
 class Question(db.Model):
     __tablename__ = 'questions'
 

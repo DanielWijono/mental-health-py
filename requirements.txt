@@ -1,4 +1,7 @@
-Flask==2.2.5
-Flask-SQLAlchemy==3.0.3
-Flask-Bcrypt==1.0.1
-Flask-Cors==3.0.10
+Flask==2.2.5 # Backend Framework
+Flask-SQLAlchemy==3.0.3 # Object Relational Mapping Database
+Flask-Bcrypt==1.0.1 # hashing password
+Flask-Cors==3.0.10 # Cross-Origin Resource Sharing
+Flask-Migrate==4.0.4 # migrate database
+psycopg2-binary==2.9.9 # Driver PostgreSQL
+Flask-RESTX==1.1.0 # Framework REST API + Swagger Documentation
