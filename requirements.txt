@@ -5,3 +5,4 @@ Flask-Cors==3.0.10 # Cross-Origin Resource Sharing
 Flask-Migrate==4.0.4 # migrate database
 psycopg2-binary==2.9.9 # Driver PostgreSQL
 Flask-RESTX==1.1.0 # Framework REST API + Swagger Documentation
+Flask-Mail==0.9.1
